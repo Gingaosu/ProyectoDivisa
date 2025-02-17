@@ -63,7 +63,7 @@ class MainActivity : ComponentActivity() {
             .build()
 
         val periodicWork = PeriodicWorkRequestBuilder<ExchangeRateWorker>(
-            1, TimeUnit.MINUTES
+            1, TimeUnit.HOURS
         )
             .setConstraints(constraints)
             .setInitialDelay(5, TimeUnit.SECONDS)
