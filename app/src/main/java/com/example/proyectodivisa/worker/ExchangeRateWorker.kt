@@ -1,23 +1,23 @@
 package com.example.proyectodivisa.worker
 
-
 import android.content.Context
-import androidx.work.Worker
+import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.example.proyectodivisa.api.ExchangeRateApi
 import com.example.proyectodivisa.database.DatabaseHelper
 import com.example.proyectodivisa.models.ExchangeRate
 import com.example.proyectodivisa.models.ExchangeRateDetail
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
 class ExchangeRateWorker(
     context: Context,
     workerParams: WorkerParameters
-) : Worker(context, workerParams) {
+) : CoroutineWorker(context, workerParams) {
 
-    override fun doWork(): Result {
+    override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         val retrofit = Retrofit.Builder()
             .baseUrl("https://v6.exchangerate-api.com/")
             .addConverterFactory(GsonConverterFactory.create())
@@ -26,35 +26,34 @@ class ExchangeRateWorker(
         val api = retrofit.create(ExchangeRateApi::class.java)
         val dbHelper = DatabaseHelper(applicationContext)
 
-        runBlocking {
-            try {
-                val response = api.getLatestRates()
-                if (response.isSuccessful) {
-                    response.body()?.let { rateResponse ->
-                        // Insert main exchange rate data
-                        val exchangeRate = ExchangeRate(
-                            rateResponse.time_last_update_unix,
-                            rateResponse.time_next_update_unix,
-                            rateResponse.base_code
-                        )
-                        val tipoCambioId = dbHelper.insertExchangeRate(exchangeRate)
+        try {
+            val response = api.getLatestRates()
+            if (response.isSuccessful) {
+                response.body()?.let { rateResponse ->
+                    // Inserta los datos principales de tipo de cambio
+                    val exchangeRate = ExchangeRate(
+                        rateResponse.time_last_update_unix,
+                        rateResponse.time_next_update_unix,
+                        rateResponse.base_code
+                    )
+                    val tipoCambioId = dbHelper.insertExchangeRate(exchangeRate)
 
-                        // Insert exchange rate details
-                        rateResponse.conversion_rates.forEach { (currency, rate) ->
-                            val detail = ExchangeRateDetail(
-                                tipoCambioId,
-                                currency,
-                                rate
-                            )
-                            dbHelper.insertExchangeRateDetail(detail)
-                        }
+                    // Inserta los detalles de la conversión
+                    rateResponse.conversion_rates.forEach { (currency, rate) ->
+                        val detail = ExchangeRateDetail(
+                            tipoCambioId,
+                            currency,
+                            rate
+                        )
+                        dbHelper.insertExchangeRateDetail(detail)
                     }
-                    return@runBlocking Result.success()
                 }
-            } catch (e: Exception) {
-                return@runBlocking Result.failure()
+                Result.success()
+            } else {
+                Result.failure()
             }
+        } catch (e: Exception) {
+            Result.failure()
         }
-        return Result.success()
     }
 }

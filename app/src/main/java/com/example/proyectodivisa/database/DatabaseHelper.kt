@@ -46,8 +46,6 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         Log.d(TAG, "Actualizando base de datos de versión $oldVersion a $newVersion")
-        db.execSQL("DROP TABLE IF EXISTS $TABLE_TIPO_CAMBIO_DETALLE")
-        db.execSQL("DROP TABLE IF EXISTS $TABLE_TIPO_CAMBIO")
         onCreate(db)
     }
 
